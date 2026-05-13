@@ -218,6 +218,21 @@
     <div class="genre-filter-row" id="genreFilterRow">
       <span class="genre-label">Genre:</span>
       <button class="genre-btn g-active" data-genre="all" onclick="setGenreFilter('all')">All</button>
+      <button class="genre-btn" data-genre="Fantasy" onclick="setGenreFilter('Fantasy')">Fantasy</button>
+      <button class="genre-btn" data-genre="Sci-Fi" onclick="setGenreFilter('Sci-Fi')">Sci-Fi</button>
+      <button class="genre-btn" data-genre="Horror" onclick="setGenreFilter('Horror')">Horror</button>
+      <button class="genre-btn" data-genre="Mystery" onclick="setGenreFilter('Mystery')">Mystery</button>
+      <button class="genre-btn" data-genre="Thriller" onclick="setGenreFilter('Thriller')">Thriller</button>
+      <button class="genre-btn" data-genre="Romance" onclick="setGenreFilter('Romance')">Romance</button>
+      <button class="genre-btn" data-genre="Historical Fiction" onclick="setGenreFilter('Historical Fiction')">Historical Fiction</button>
+      <button class="genre-btn" data-genre="Literary Fiction" onclick="setGenreFilter('Literary Fiction')">Literary Fiction</button>
+      <button class="genre-btn" data-genre="Non-Fiction" onclick="setGenreFilter('Non-Fiction')">Non-Fiction</button>
+      <button class="genre-btn" data-genre="Biography" onclick="setGenreFilter('Biography')">Biography</button>
+      <button class="genre-btn" data-genre="Self-Help" onclick="setGenreFilter('Self-Help')">Self-Help</button>
+      <button class="genre-btn" data-genre="Comics" onclick="setGenreFilter('Comics')">Comics</button>
+      <button class="genre-btn" data-genre="Children's" onclick="setGenreFilter('Children\'s')">Children's</button>
+      <button class="genre-btn" data-genre="Young Adult" onclick="setGenreFilter('Young Adult')">Young Adult</button>
+      <button class="genre-btn" data-genre="Other" onclick="setGenreFilter('Other')">Other</button>
     </div>
     <div class="grid" id="bookGrid"></div>
   </div>
@@ -389,32 +404,42 @@ function setGenreFilter(g) {
   renderLibrary();
 }
 
-function getAllGenres() {
-  const genres = new Set();
-  books.forEach(b => {
-    if (b.genre) b.genre.split(',').map(g=>g.trim()).filter(Boolean).forEach(g=>genres.add(g));
+const GENRE_MAP = [
+  { label: 'Fantasy',            keys: ['fantasy','magic','wizard','witch','dragon','fairy','mytholog','sword','sorcery','tolkien','epic fantasy','fae'] },
+  { label: 'Sci-Fi',             keys: ['science fiction','sci-fi','space opera','futuristic','robot','cyberpunk','dystop','alien','time travel','artificial intelligence','galactic','interstellar'] },
+  { label: 'Horror',             keys: ['horror','ghost','vampire','zombie','supernatural','haunted','terror','occult','gothic fiction','lovecraft','dark fiction'] },
+  { label: 'Mystery',            keys: ['mystery','detective','whodunit','crime fiction','sleuth','cozy mystery','noir','private investigator','murder mystery'] },
+  { label: 'Thriller',           keys: ['thriller','suspense','spy','espionage','conspiracy','legal thriller','political thriller','psychological thriller'] },
+  { label: 'Romance',            keys: ['romance','love story','romantic','chick lit','historical romance','contemporary romance'] },
+  { label: 'Historical Fiction', keys: ['historical fiction','historical novel','war fiction','medieval','ancient','victorian','world war','civil war'] },
+  { label: 'Literary Fiction',   keys: ['literary fiction','literary','classic','short stories','general fiction','contemporary fiction'] },
+  { label: 'Non-Fiction',        keys: ['nonfiction','non-fiction','history','science','philosophy','politics','economics','true crime','journalism','essay','nature','social science','true stories'] },
+  { label: 'Biography',          keys: ['biography','autobiography','memoir','personal narrative','diary'] },
+  { label: 'Self-Help',          keys: ['self-help','self help','personal development','motivation','productivity','psychology','mental health','wellness','mindfulness','leadership','business'] },
+  { label: 'Comics',             keys: ['comic','graphic novel','manga','illustrated','superhero','sequential art'] },
+  { label: "Children's",         keys: ["children's","juvenile fiction","picture book","middle grade","kids"] },
+  { label: 'Young Adult',        keys: ['young adult','ya fiction','teen fiction','adolescent'] },
+];
+
+function mapGenres(subjects) {
+  if (!subjects || !subjects.length) return 'Other';
+  const subjectStr = subjects.join(' ').toLowerCase();
+  const matched = new Set();
+  GENRE_MAP.forEach(({ label, keys }) => {
+    if (keys.some(k => subjectStr.includes(k))) matched.add(label);
   });
-  return [...genres].sort();
+  return matched.size ? [...matched].slice(0, 2).join(', ') : 'Other';
 }
 
-function renderGenreButtons() {
-  const genres = getAllGenres();
-  const row = document.getElementById('genreFilterRow');
-  row.innerHTML = '<span class="genre-label">Genre:</span>';
-  const allBtn = document.createElement('button');
-  allBtn.className = 'genre-btn'+(currentGenreFilter==='all'?' g-active':'');
-  allBtn.dataset.genre = 'all';
-  allBtn.textContent = 'All';
-  allBtn.onclick = ()=>setGenreFilter('all');
-  row.appendChild(allBtn);
-  genres.forEach(g => {
-    const btn = document.createElement('button');
-    btn.className = 'genre-btn'+(currentGenreFilter===g?' g-active':'');
-    btn.dataset.genre = g;
-    btn.textContent = g;
-    btn.onclick = ()=>setGenreFilter(g);
-    row.appendChild(btn);
+function getAllGenres() { return []; }
+function renderGenreButtons() {}
+
+function setGenreFilter(g) {
+  currentGenreFilter = g;
+  document.querySelectorAll('.genre-btn').forEach(b => {
+    b.className = 'genre-btn' + (b.dataset.genre === g ? ' g-active' : '');
   });
+  renderLibrary();
 }
 
 function renderLibrary() {
@@ -422,7 +447,7 @@ function renderLibrary() {
   const list = books.filter(b => {
     const mf = currentFilter==='all' || b.status===currentFilter;
     const mt = currentTypeFilter==='all' || b.type===currentTypeFilter;
-    const mg = currentGenreFilter==='all' || (b.genre&&b.genre.toLowerCase().includes(currentGenreFilter.toLowerCase()));
+    const mg = currentGenreFilter==='all' || (b.genre && b.genre.split(',').map(g=>g.trim()).includes(currentGenreFilter));
     const mq = !q || b.title.toLowerCase().includes(q) || (b.author||'').toLowerCase().includes(q);
     return mf&&mt&&mg&&mq;
   });
@@ -432,8 +457,6 @@ function renderLibrary() {
   document.getElementById('stat-read').textContent = books.filter(b=>b.status==='read').length;
   document.getElementById('stat-wishlist').textContent = books.filter(b=>b.status==='wishlist').length;
   document.getElementById('stat-backlog').textContent = books.filter(b=>b.status==='backlog').length;
-
-  renderGenreButtons();
 
   const grid = document.getElementById('bookGrid');
   if (!list.length) {
@@ -524,7 +547,7 @@ async function searchOpenLibrary() {
       const coverL=item.cover_i?`https://covers.openlibrary.org/b/id/${item.cover_i}-L.jpg`:'';
       const author=(item.author_name||[]).slice(0,2).join(', ')||'Unknown';
       const title=item.title||'Unknown Title';
-      const genre=(item.subject||[]).slice(0,4).join(', ');
+      const genre = mapGenres(item.subject || []);
       const workKey=item.key||'';
       const obj=JSON.stringify({title,author,cover:coverL,genre,workKey}).replace(/"/g,'&quot;');
       return `<div class="search-result-item" onclick="fillFromResult(${obj})">
@@ -669,9 +692,9 @@ function deleteBook(id) {
 }
 
 function populateRecGenres() {
-  const genres=getAllGenres();
+  const fixedGenres = GENRE_MAP.map(g=>g.label).concat(['Other']);
   const sel=document.getElementById('recGenre');
-  sel.innerHTML='<option value="all">Any Genre</option>'+genres.map(g=>`<option value="${g}">${g}</option>`).join('');
+  sel.innerHTML='<option value="all">Any Genre</option>'+fixedGenres.map(g=>`<option value="${g}">${g}</option>`).join('');
 }
 
 function getRecommendation() {
