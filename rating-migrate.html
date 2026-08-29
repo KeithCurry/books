@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Shelf — Rating Migration</title>
+<style>
+  body { font-family: 'Lato', sans-serif; background: #1a1208; color: #f0e6d3; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .box { background: #231a0e; border: 1px solid #4a3520; border-radius: 14px; padding: 2rem; max-width: 560px; width: 100%; }
+  h2 { color: #e8b96a; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif; }
+  p { color: #a89070; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }
+  button { background: #c9883a; border: none; color: #1a1208; font-size: 1rem; font-weight: 700; padding: 0.85rem 2rem; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.2s; }
+  button:hover { background: #e8b96a; }
+  button:disabled { background: #4a3520; color: #a89070; cursor: not-allowed; }
+  .log { background: #0d0a05; border: 1px solid #4a3520; border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.82rem; font-family: monospace; max-height: 300px; overflow-y: auto; line-height: 1.8; }
+  .ok { color: #7ec9a3; }
+  .err { color: #e08080; }
+  .info { color: #a89070; }
+  .done { color: #e8b96a; font-weight: bold; font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>📚 The Shelf Rating Migration</h2>
+  <p>This converts your existing 1–5 star ratings to the new 1–10 scale (5→9 Amazing, 4→8 Great, 3→7 Good, 2→6 Okay, 1→2 Awful). Unrated books are left alone. This only needs to be run once — delete this file from your repo afterward. Click below to start!</p>
+  <button id="migrateBtn" onclick="migrate()">Start Migration</button>
+  <div class="log" id="log" style="display:none"></div>
+</div>
+
+<script>
+const SB_URL = 'https://mevgnbkxcecocrlvkutw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ldmduYmt4Y2Vjb2NybHZrdXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NDE0MzAsImV4cCI6MjA5NDMxNzQzMH0.xkajYqr8dIlmhYxgsjcP_SvT0m4oU81auEImdHPiWoE';
+
+// Old scale (1-5) -> New scale (1-10), matched by label meaning
+const RATING_MAP = { 1: 2, 2: 6, 3: 7, 4: 8, 5: 9 };
+
+function log(msg, type='info') {
+  const div = document.getElementById('log');
+  div.style.display = 'block';
+  div.innerHTML += `<div class="${type}">${msg}</div>`;
+  div.scrollTop = div.scrollHeight;
+}
+
+async function migrate() {
+  const btn = document.getElementById('migrateBtn');
+  btn.disabled = true;
+  btn.textContent = 'Migrating…';
+
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/books?select=id,rating`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    const books = await res.json();
+    const toConvert = books.filter(b => RATING_MAP[b.rating] !== undefined);
+
+    log(`Found ${books.length} books, ${toConvert.length} have old-scale ratings to convert…`, 'info');
+
+    let success = 0, failed = 0;
+    for (const book of toConvert) {
+      const newRating = RATING_MAP[book.rating];
+      try {
+        const r = await fetch(`${SB_URL}/rest/v1/books?id=eq.${book.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+            'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ rating: newRating })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        log(`✓ ${book.id}: ${book.rating} → ${newRating}`, 'ok');
+        success++;
+      } catch (e) {
+        log(`✗ ${book.id}: ${e.message}`, 'err');
+        failed++;
+      }
+    }
+    log(`Done! ${success} converted, ${failed} failed.`, 'done');
+  } catch (e) {
+    log(`Fatal error: ${e.message}`, 'err');
+  }
+
+  btn.textContent = 'Migration Complete';
+}
+</script>
+</body>
+</html>
